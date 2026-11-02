@@ -1,0 +1,22 @@
+# In a solo repository CODEOWNERS is a signal, not a gate: the owner cannot
+# be asked to review their own PR. The effective gate is the CI `guard` job
+# (scripts/guard.sh + scripts/protected-paths.txt) combined with branch
+# protection requiring it. Keep this list in sync with protected-paths.txt.
+
+/.golangci.*                @adil-jr
+/lefthook*                  @adil-jr
+/.lefthook*                 @adil-jr
+/mise.toml                  @adil-jr
+/mise.*.toml                @adil-jr
+/.mise.toml                 @adil-jr
+/.mise.*.toml               @adil-jr
+/mise/                      @adil-jr
+/.mise/                     @adil-jr
+/.config/                   @adil-jr
+/.tool-versions             @adil-jr
+/Makefile                   @adil-jr
+/scripts/                   @adil-jr
+/.github/                   @adil-jr
+/.claude/                   @adil-jr
+/CLAUDE.md                  @adil-jr
+/testdata/                  @adil-jr

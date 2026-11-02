@@ -14,6 +14,8 @@ FUZZTIME ?= 60s
 
 # Packages under mutation testing.
 MUTATION_PKGS ?= ./internal/crypto
+# Extra gremlins flags, e.g. MUTATION_FLAGS="-o gremlins-report.json" in CI.
+MUTATION_FLAGS ?=
 
 .DEFAULT_GOAL := help
 
@@ -72,7 +74,7 @@ vuln: ## Scan for known vulnerabilities with govulncheck
 mutation: ## Run mutation tests (gremlins) on MUTATION_PKGS
 	@set -e; for p in $(MUTATION_PKGS); do \
 		echo "==> gremlins $$p"; \
-		$(MISE) gremlins unleash "$$p"; \
+		$(MISE) gremlins unleash $(MUTATION_FLAGS) "$$p"; \
 	done
 
 .PHONY: clean
