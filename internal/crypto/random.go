@@ -20,3 +20,11 @@ func NewRecordID() []byte {
 	_, _ = rand.Read(b)
 	return b
 }
+
+// NewDEK returns a fresh KeySize-byte data-encryption key from crypto/rand,
+// generated once at vault init. Like NewSalt, it has no error path.
+func NewDEK() []byte {
+	b := make([]byte, KeySize)
+	_, _ = rand.Read(b)
+	return b
+}

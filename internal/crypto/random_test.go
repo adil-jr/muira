@@ -30,3 +30,16 @@ func TestNewRecordID(t *testing.T) {
 		t.Fatal("record ID is all zeros")
 	}
 }
+
+func TestNewDEK(t *testing.T) {
+	a, b := NewDEK(), NewDEK()
+	if len(a) != KeySize || len(b) != KeySize {
+		t.Fatalf("DEK lengths %d and %d, want %d", len(a), len(b), KeySize)
+	}
+	if bytes.Equal(a, b) {
+		t.Fatal("two DEKs are equal")
+	}
+	if bytes.Equal(a, make([]byte, KeySize)) {
+		t.Fatal("DEK is all zeros")
+	}
+}
