@@ -11,3 +11,12 @@ func NewSalt() []byte {
 	_, _ = rand.Read(b)
 	return b
 }
+
+// NewRecordID returns RecordIDSize fresh random bytes from crypto/rand, to
+// be used as a record's storage key and in its AAD. Like NewSalt, it has no
+// error path.
+func NewRecordID() []byte {
+	b := make([]byte, RecordIDSize)
+	_, _ = rand.Read(b)
+	return b
+}
