@@ -1,0 +1,67 @@
+# Protected file: humans edit it. Non-blocking report: fuzzing and mutation
+# testing never fail the workflow; read the job summary and artifacts.
+name: nightly
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # mise CLI version for jdx/mise-action (tool versions live in mise.toml).
+  # No MISE_ prefix on purpose: mise reads MISE_* variables as settings.
+  PINNED_MISE_VERSION: 2026.10.11
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # One entry per fuzz target as <package>:<FuzzFunc>, enabled in
+        # Phase 1, e.g.:
+        #   - ./internal/crypto:FuzzOpen
+        #   - ./internal/crypto:FuzzParseEnvelope
+        target: [""]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+      - name: Fuzz ${{ matrix.target }} for 60s
+        env:
+          TARGET: ${{ matrix.target }}
+        run: make fuzz FUZZ_TARGETS="$TARGET" FUZZTIME=60s
+      - name: Upload failing inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashers
+          path: "**/testdata/fuzz/**"
+          if-no-files-found: ignore
+
+  mutation:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+      - name: gremlins on internal/crypto
+        run: make mutation MUTATION_FLAGS="-o gremlins-report.json"
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gremlins-report
+          path: gremlins-report.json
+          if-no-files-found: ignore

@@ -1,0 +1,106 @@
+# Protected file: humans edit it. Every tool version comes from mise.toml.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # labeled/unlabeled re-run the guard when allow-guard-change changes.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+env:
+  # mise CLI version for jdx/mise-action (tool versions live in mise.toml).
+  # No MISE_ prefix on purpose: mise reads MISE_* variables as settings.
+  PINNED_MISE_VERSION: 2026.10.11
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          # Binary installed by mise from mise.toml.
+          install-mode: none
+          verify: true
+      - name: Check formatting
+        run: make fmt-check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+      - name: Test with race detector and coverage floor
+        # 85% floor on internal/crypto and internal/vault; packages that only
+        # have doc.go are skipped, code without tests fails.
+        run: make cover
+
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+      - name: govulncheck
+        run: make vuln
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+      - name: shellcheck scripts/ and .claude/hooks/
+        run: |
+          find scripts .claude/hooks -type f -name '*.sh' -print0 2>/dev/null \
+            | xargs -0 -r mise exec -- shellcheck --severity=style
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+      - name: actionlint (also shellchecks run blocks)
+        run: mise exec -- actionlint
+
+  guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fail on protected path changes without allow-guard-change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ALLOW_GUARD_CHANGE: ${{ contains(github.event.pull_request.labels.*.name, 'allow-guard-change') }}
+        run: ./scripts/guard.sh "$BASE_SHA" "$HEAD_SHA"
