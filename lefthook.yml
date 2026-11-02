@@ -1,0 +1,35 @@
+# Git hooks. Protected file: humans edit it.
+#
+# Git runs hooks in a non-interactive shell where `mise activate` is not
+# loaded, so lefthook itself and every tool run through `mise exec --`,
+# which pins versions from mise.toml.
+lefthook: mise exec -- lefthook
+min_version: 2.2.2
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format
+      run: mise exec -- golangci-lint fmt --diff
+    - name: lint
+      run: mise exec -- ./scripts/lint-new.sh
+    - name: test-short
+      run: mise exec -- go test -short ./...
+    - name: lint-scripts
+      glob:
+        - "*.sh"
+        - ".github/workflows/*.yml"
+      run: make lint-scripts
+
+commit-msg:
+  jobs:
+    - name: conventional-commit
+      run: ./scripts/commit-msg.sh {1}
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: lint
+      run: mise exec -- golangci-lint run ./...
+    - name: test-race
+      run: mise exec -- go test -race ./...

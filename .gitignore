@@ -1,0 +1,26 @@
+# Build output and locally installed tools
+/bin/
+/dist/
+
+# Vault databases (never commit a vault)
+*.db
+
+# Test and coverage artifacts
+*.test
+*.out
+coverage.*
+
+# Mutation testing reports
+gremlins*.json
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local overrides that must never be committed
+lefthook-local.yml
+.lefthook-local.yml
+mise.local.toml
+.claude/settings.local.json

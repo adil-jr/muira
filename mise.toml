@@ -1,0 +1,15 @@
+# Single source of truth for every tool version used locally (Makefile,
+# lefthook) and in CI (jdx/mise-action). Protected file: humans edit it.
+#
+# Registry tools resolve to the aqua backend (official release binaries).
+# Tools missing from the mise registry use the go: backend (built locally).
+
+[tools]
+go = "1.27.3"
+golangci-lint = "2.15.0"
+lefthook = "2.2.2"
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+goreleaser = "2.19.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
+"go:github.com/go-gremlins/gremlins/cmd/gremlins" = "0.6.0"

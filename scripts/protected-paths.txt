@@ -1,0 +1,37 @@
+# Protected paths, shared by .claude/hooks/protect-files.sh (blocks agent
+# edits) and the CI `guard` job (fails a PR touching them without the
+# `allow-guard-change` label).
+#
+# Syntax: one bash glob per line, matched against the repo-relative path.
+# A trailing "/" protects the whole directory. Blank lines and # are ignored.
+#
+# go.mod / go.sum / go.work are NOT listed: the Claude Code hook asks the
+# human before editing them, and the depguard allowlist is the dependency
+# gate in CI.
+
+# Lint
+.golangci.*
+
+# Git hooks (local overrides included: they can disable hooks)
+lefthook*
+.lefthook*
+.git/hooks/
+.git/config
+
+# Tool versions (mise.toml and every file mise reads on top of it)
+mise.toml
+mise.*.toml
+.mise.toml
+.mise.*.toml
+mise/
+.mise/
+.config/mise*
+.tool-versions
+
+# Build, scripts, CI, agent configuration and test vectors
+Makefile
+scripts/
+.github/
+.claude/
+CLAUDE.md
+testdata/
