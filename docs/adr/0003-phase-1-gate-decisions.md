@@ -1,7 +1,9 @@
 # 3. Decisões de travas da Fase 1
 
 - Status: **Aceita** (2026-11-02, pelo humano; as duas decisões já foram
-  revisadas e aplicadas em `9271233` e `fba3d6c`)
+  revisadas e aplicadas nos commits
+  `chore(lint): restrict x/crypto to argon2` e
+  `chore(guard): protect package testdata directories`)
 - Data: 2026-11-02
 
 ## Contexto
