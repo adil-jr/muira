@@ -57,6 +57,10 @@ lint-scripts: ## Lint shell scripts (shellcheck) and workflows (actionlint)
 	find scripts .claude/hooks -type f -name '*.sh' -print0 2>/dev/null | xargs -0 -r $(MISE) shellcheck --severity=style
 	@if [ -d .github/workflows ]; then $(MISE) actionlint; else echo "actionlint: no workflows yet"; fi
 
+.PHONY: test-hooks
+test-hooks: ## Run the Claude Code guard hook regression suite
+	./.claude/hooks/test-hooks.sh
+
 .PHONY: fuzz
 fuzz: ## Run each fuzz target for FUZZTIME
 	@if [ -z "$(strip $(FUZZ_TARGETS))" ]; then echo "fuzz: no targets configured yet (Phase 1)"; exit 0; fi

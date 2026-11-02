@@ -67,6 +67,7 @@ e block Edit "$root/scripts/commit-msg.sh"
 e block Write "$root/.github/workflows/ci.yml"
 e block Edit "$root/.claude/settings.json"
 e block Write "$root/.claude/settings.local.json"
+e block Edit "$root/.claude/settings.local.json"
 e block Write "$root/testdata/gcm.rsp"
 e block Edit "$root/CLAUDE.md"
 e block MultiEdit "$root/internal/../Makefile"
@@ -124,6 +125,23 @@ b block 'find scripts -name "*.sh" -delete'
 b block 'git checkout -- Makefile'
 b block 'git rm CLAUDE.md'
 b block 'echo "{}" > ~/.claude/settings.json'
+# disableAllHooks: true in local settings outranks the project settings.
+b block "echo '{\"disableAllHooks\": true}' > .claude/settings.local.json"
+b block 'jq ".disableAllHooks = true" .claude/settings.json | tee .claude/settings.local.json'
+b block "cp /tmp/off.json .claude/settings.local.json"
+b block "claude -p --settings '{\"disableAllHooks\": true}' 'edit Makefile'"
+b block 'claude --setting-sources user -p "edit Makefile"'
+b allow 'claude --version'
+# Patches can write any path: the agent never applies them.
+b block 'git apply /tmp/fix.patch'
+b block 'git apply --check /tmp/fix.patch'
+b block 'git -C . am < 0001-fix.patch'
+b block 'patch -p1 < fix.diff'
+b block 'cat fix.diff | patch -p1'
+b block 'mise exec -- patch -p1 -i fix.diff'
+b allow 'git format-patch -1 HEAD -o /tmp/patches'
+b allow 'git diff > /tmp/change.patch'
+b allow 'git log --patch -1'
 b ask "sed -i 's/v1/v2/' go.mod"
 b allow 'git commit -m "feat(crypto): add Argon2id key derivation"'
 b allow 'git push origin feat/crypto'
