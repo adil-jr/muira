@@ -8,7 +8,7 @@ decisions as ADRs in `docs/adr/`.
 - [x] Go module, package layout, Makefile, tool versions pinned in `mise.toml`
 - [x] golangci-lint v2 with depguard/forbidigo layering rules, proven to fail on violations
 - [x] Lefthook pre-commit / commit-msg / pre-push
-- [ ] Claude Code hooks protecting gate files and blocking gate bypasses
+- [x] Claude Code hooks protecting gate files and blocking gate bypasses
 - [x] CI (lint, test + coverage floor, govulncheck, shellcheck, actionlint, guard), nightly, Dependabot, CODEOWNERS
 - [x] CLAUDE.md, ADR 0001, ADR 0002 (Proposed), README skeleton
 
