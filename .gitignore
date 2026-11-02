@@ -23,4 +23,6 @@ gremlins*.json
 lefthook-local.yml
 .lefthook-local.yml
 mise.local.toml
+mise.local.lock
+mise.*.local.lock
 .claude/settings.local.json
