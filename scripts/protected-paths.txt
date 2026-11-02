@@ -40,3 +40,14 @@ scripts/
 .claude/
 CLAUDE.md
 testdata/
+
+# Package test data: fuzz regression cases and golden files are expected
+# values too (CLAUDE.md rule 5). No trailing "/": these are globs, and "*"
+# also matches "/", so any depth below internal/ and cmd/ is covered. The
+# bare directory line catches operations on the directory itself.
+internal/testdata/
+internal/*/testdata
+internal/*/testdata/*
+cmd/testdata/
+cmd/*/testdata
+cmd/*/testdata/*

@@ -85,6 +85,15 @@ e ask Edit "$root/go.mod"
 e ask Edit "$root/go.sum"
 e ask Write "$root/go.work"
 e allow Write "$root/internal/crypto/aead.go"
+# Package testdata directories (fuzz corpus, golden files).
+e block Write "$root/internal/crypto/testdata/fuzz/FuzzOpen/x"
+e block Edit "$root/internal/vault/sub/testdata/golden.json"
+e block Write "$root/internal/testdata/x"
+e block Write "$root/cmd/muira/testdata/out.golden"
+e allow Write "$root/internal/crypto/x.go"
+e allow Write "$root/internal/crypto/testdatax/y"
+e allow Write "$root/internal/crypto/my_testdata/y"
+e allow Write "$root/cmd/muira/main_test.go"
 e allow Edit "$root/docs/ROADMAP.md"
 e allow Edit "$root/README.md"
 e allow Write "/tmp/scratch/notes.txt"
@@ -162,6 +171,10 @@ b allow 'mise install'
 b allow 'go test ./... 2>&1 > /tmp/out.txt'
 b allow 'echo hi >&2'
 b allow 'rm -f internal/vault/zz_violation.go'
+b block 'rm -rf internal/crypto/testdata'
+b block 'echo x > internal/crypto/testdata/fuzz/FuzzOpen/x'
+b block 'mv /tmp/case internal/crypto/testdata/fuzz/FuzzOpen/x'
+b allow 'rm -rf internal/crypto/testdatax'
 b allow 'sed -n 1,20p Makefile'
 b allow 'go get golang.org/x/crypto@latest'
 
