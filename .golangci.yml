@@ -47,7 +47,9 @@ linters:
           allow:
             - $gostd
             - github.com/adil-jr/muira
-            - golang.org/x/crypto
+            # x/crypto: only argon2; the module also ships the unsafe, unmaintained
+            # openpgp package (GO-2026-5932).
+            - golang.org/x/crypto/argon2
             - golang.org/x/term
             - go.etcd.io/bbolt
             - github.com/spf13/cobra
