@@ -16,7 +16,11 @@ arquivo e registre as novas decisões como ADRs em `docs/adr/`.
 - [x] ROADMAP, ADR 0001 e ADR 0002 traduzidos para pt-BR, sem mudança de conteúdo; regra de idioma no `CLAUDE.md`
 - [x] Falso positivo do guard-bash com corpo de heredoc e argumento de `-m`/`-F`: **avaliado e rejeitado**. Com a regra de commit via arquivo (`git commit -F <arquivo>`), o falso positivo das mensagens não acontece mais, e a correção acrescentava ~350 linhas de parser em bash a uma trava de segurança: mais superfície de bug e código que o humano não consegue revisar linha a linha, o que quebra a regra de que ele revisa tudo o que entra nos arquivos protegidos. Decisão de custo/benefício.
 - [x] `mise.lock` commitado e protegido (`scripts/protected-paths.txt`; `mise lock` e `mise upgrade` bloqueados no guard-bash), `PINNED_MISE_VERSION` em 2026.10.25 e CI instalando com `mise install --locked`
-- [ ] `locked = true` no `mise.toml`: **adiado**. Localmente, `mise install --locked` falha nas ferramentas da config global do usuário (fora do lock do projeto: "not in the lockfile"), e um `mise exec --` instalou sozinho uma ferramenta global e rodou uma etapa de lock. Antes de ativar, investigar se o modo locked quebra `mise exec`/lefthook e se há forma oficial de limitá-lo às ferramentas do projeto.
+- [x] `locked = true` no `mise.toml`: **avaliado e não adotado**. A investigação (mise 2026.10.25, HOME falso com ferramentas globais fora do lock) mostrou:
+  - com `locked = true` no projeto, `mise exec` e o lefthook funcionam com avisos, mas `mise install` (e portanto `make tools`) falha em quem tem ferramentas globais fora do lock;
+  - o único jeito oficial de restringir o modo locked às ferramentas do projeto é o `locked_scopes`, que só vale na config global do usuário; o projeto não pode exigir config pessoal de quem clona;
+  - o CI já instala com `--locked`, porque a `mise-action` o acrescenta quando existe `mise.lock`;
+  - o risco local, um `mise exec`/`mise install` regravar o `mise.lock` quando o `mise.toml` muda sem `mise lock`, fica coberto: o `mise.toml` é protegido, a regravação aparece no `git status` e o CI pega (job `guard` e `--locked`).
 
 ### Limitação conhecida: guard-bash de melhor esforço
 O guard-bash analisa o texto cru do comando, então gera falsos positivos, por exemplo:
