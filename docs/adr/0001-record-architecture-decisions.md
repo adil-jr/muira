@@ -1,30 +1,33 @@
-# 1. Record architecture decisions
+# 1. Registrar decisões de arquitetura
 
-- Status: Accepted
-- Date: 2026-11-01
+- Status: Aceita
+- Data: 2026-11-01
+- Idioma: tradução fiel do original em inglês (2026-11-02), sem mudança de conteúdo
 
-## Context
+## Contexto
 
-muira is built with an LLM coding agent under human review. Decisions made
-in a chat session are lost when the session ends, and a future session (or
-a reviewer) has no way to know why the code looks the way it does. We need a
-durable, reviewable record of significant decisions.
+O muira é construído com um agente de programação baseado em LLM, sob revisão
+humana. Decisões tomadas numa sessão de chat se perdem quando a sessão
+termina, e uma sessão futura (ou um revisor) não tem como saber por que o
+código é como é. Precisamos de um registro durável e revisável das decisões
+significativas.
 
-## Decision
+## Decisão
 
-We record architecture decisions as Architecture Decision Records (ADRs), as
-described by Michael Nygard in "Documenting Architecture Decisions" (2011).
+Registramos as decisões de arquitetura como Architecture Decision Records
+(ADRs), conforme descrito por Michael Nygard em "Documenting Architecture
+Decisions" (2011).
 
-- ADRs live in `docs/adr/`, named `NNNN-short-title.md`, numbered sequentially.
-- Each ADR has: title, status, date, context, decision, consequences.
-- Status is one of: Proposed, Accepted, Rejected, Deprecated, Superseded by NNNN.
-- An agent may draft an ADR as Proposed; only the human moves it to Accepted.
-- Accepted ADRs are not rewritten; a change of mind is a new ADR that
-  supersedes the old one.
-- Adding a dependency outside the allowed list (see `CLAUDE.md`) requires an ADR.
+- As ADRs ficam em `docs/adr/`, com nome `NNNN-titulo-curto.md`, numeradas em sequência.
+- Cada ADR tem: título, status, data, contexto, decisão, consequências.
+- O status é um destes: Proposta, Aceita, Rejeitada, Obsoleta, Substituída por NNNN.
+- Um agente pode redigir uma ADR como Proposta; só o humano a move para Aceita.
+- ADRs aceitas não são reescritas; uma mudança de ideia é uma nova ADR que
+  substitui a antiga.
+- Adicionar uma dependência fora da lista permitida (veja `CLAUDE.md`) exige uma ADR.
 
-## Consequences
+## Consequências
 
-- Every phase closes with a check for new decisions that deserve an ADR.
-- Reviewers can trace the reasoning behind the code without the chat history.
-- Writing ADRs costs a little time per decision.
+- Toda fase termina com uma verificação de novas decisões que merecem uma ADR.
+- Revisores conseguem rastrear o raciocínio por trás do código sem o histórico do chat.
+- Escrever ADRs custa um pouco de tempo por decisão.
