@@ -1,52 +1,52 @@
 # Roadmap
 
-Each phase lives on its own branch and is closed only when every acceptance
-criterion is checked. When closing a phase, update this file and record new
-decisions as ADRs in `docs/adr/`.
+Cada fase vive na sua própria branch e só é encerrada quando todos os
+critérios de aceite estão marcados. Ao encerrar uma fase, atualize este
+arquivo e registre as novas decisões como ADRs em `docs/adr/`.
 
-## Phase 0 — foundation (`chore/foundation`)
-- [x] Go module, package layout, Makefile, tool versions pinned in `mise.toml`
-- [x] golangci-lint v2 with depguard/forbidigo layering rules, proven to fail on violations
+## Fase 0 — fundação (`chore/foundation`)
+- [x] Módulo Go, estrutura de pacotes, Makefile, versões das ferramentas fixadas em `mise.toml`
+- [x] golangci-lint v2 com regras de camadas em depguard/forbidigo, comprovadamente falhando em violações
 - [x] Lefthook pre-commit / commit-msg / pre-push
-- [x] Claude Code hooks protecting gate files and blocking gate bypasses
-- [x] CI (lint, test + coverage floor, govulncheck, shellcheck, actionlint, guard), nightly, Dependabot, CODEOWNERS
-- [x] CLAUDE.md, ADR 0001, ADR 0002 (Proposed), README skeleton
+- [x] Hooks do Claude Code protegendo os arquivos das travas e bloqueando o contorno das travas
+- [x] CI (lint, testes + piso de cobertura, govulncheck, shellcheck, actionlint, guard), nightly, Dependabot, CODEOWNERS
+- [x] CLAUDE.md, ADR 0001, ADR 0002 (Proposta), esqueleto do README
 
-## Phase 1 — crypto (`feat/crypto`)
-- [ ] ADR 0002 reviewed and moved to Accepted
-- [ ] Argon2id KDF with parameters taken from vault metadata (never hardcoded on read)
-- [ ] AES-256-GCM seal/open with a random 96-bit nonce per operation; internal variant takes an explicit nonce for known-answer tests
-- [ ] Versioned envelope format (leading version byte), DEK wrapped by KEK, AAD as specified in ADR 0002
-- [ ] Official vectors in `testdata/`: NIST CAVP GCM (256-bit key, 96-bit IV) and phc-winner-argon2 Argon2id, with exact source cited
-- [ ] Cheap Argon2 parameters injected under `-short`; production defaults untouched
-- [ ] Fuzz targets for envelope parsing and open, enabled in `make fuzz` and nightly
-- [ ] Coverage ≥ 85% with `-race`; mutation report reviewed
+## Fase 1 — crypto (`feat/crypto`)
+- [ ] ADR 0002 revisada e movida para Aceita
+- [ ] KDF Argon2id com parâmetros lidos dos metadados do cofre (nunca fixos no código na leitura)
+- [ ] Seal/open AES-256-GCM com nonce aleatório de 96 bits por operação; variante interna recebe nonce explícito para os testes de resposta conhecida (KAT)
+- [ ] Formato de envelope versionado (byte de versão no início), DEK embrulhada pela KEK, AAD conforme a ADR 0002
+- [ ] Vetores oficiais em `testdata/`: NIST CAVP GCM (chave de 256 bits, IV de 96 bits) e Argon2id do phc-winner-argon2, com a fonte exata citada
+- [ ] Parâmetros baratos de Argon2 injetados em `-short`; padrões de produção intocados
+- [ ] Alvos de fuzz para o parsing do envelope e para o open, ativados no `make fuzz` e no nightly
+- [ ] Cobertura ≥ 85% com `-race`; relatório de mutação revisado
 
-## Phase 2 — storage (`feat/storage`)
-- [ ] bbolt repository with `meta` and `records` buckets
-- [ ] Database file created with mode 0600
-- [ ] Storage stores opaque bytes only; no knowledge of cryptography
-- [ ] Tests use `t.TempDir()`; pass with `-race`
+## Fase 2 — storage (`feat/storage`)
+- [ ] Repositório bbolt com os buckets `meta` e `records`
+- [ ] Arquivo do banco criado com modo 0600
+- [ ] O storage guarda apenas bytes opacos; não sabe nada de criptografia
+- [ ] Testes usam `t.TempDir()`; passam com `-race`
 
-## Phase 3 — vault (`feat/vault`)
+## Fase 3 — vault (`feat/vault`)
 - [ ] `init`, `unlock`, `add`, `get`, `list`, `delete`, `rotate`
-- [ ] `Secret` type that keeps values as `[]byte` and zeroes them (best effort)
-- [ ] Wrong password detected by DEK decryption failure, not a stored hash
-- [ ] Rotation re-encrypts only the DEK
-- [ ] Coverage ≥ 85% with `-race`
+- [ ] Tipo `Secret` que mantém os valores como `[]byte` e os zera (melhor esforço)
+- [ ] Senha errada detectada pela falha ao decifrar a DEK, não por um hash armazenado
+- [ ] A rotação recifra apenas a DEK
+- [ ] Cobertura ≥ 85% com `-race`
 
-## Phase 4 — cli (`feat/cli`)
-- [ ] Cobra commands mapping 1:1 to vault operations
-- [ ] Password read with `x/term` (no echo); never accepted as a flag
-- [ ] Errors printed without secret material
-- [ ] End-to-end tests of the binary against a temporary vault
+## Fase 4 — cli (`feat/cli`)
+- [ ] Comandos Cobra mapeando 1:1 as operações do vault
+- [ ] Senha lida com `x/term` (sem eco); nunca aceita como flag
+- [ ] Erros impressos sem material secreto
+- [ ] Testes ponta a ponta do binário contra um cofre temporário
 
-## Phase 5 — release (`chore/release`)
-- [ ] GoReleaser config with SHA-256 checksums
-- [ ] README with threat model and the LLM-assisted development workflow
+## Fase 5 — release (`chore/release`)
+- [ ] Configuração do GoReleaser com checksums SHA-256
+- [ ] README com modelo de ameaças e o fluxo de desenvolvimento assistido por LLM
 
-## v2 — out of MVP scope
-- [ ] Audit log with `log/slog`
-- [ ] Diagnostic telemetry (local, opt-in)
-- [ ] Clipboard copy with automatic clearing
+## v2 — fora do escopo do MVP
+- [ ] Log de auditoria com `log/slog`
+- [ ] Telemetria de diagnóstico (local, opt-in)
+- [ ] Cópia para a área de transferência com limpeza automática
 - [ ] TUI

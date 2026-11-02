@@ -1,150 +1,153 @@
-# 2. Cryptographic design
+# 2. Design criptográfico
 
-- Status: **Proposed** (to be reviewed by the human before Phase 1)
-- Date: 2026-11-01
+- Status: **Proposta** (a ser revisada pelo humano antes da Fase 1)
+- Data: 2026-11-01
+- Idioma: tradução fiel do original em inglês (2026-11-02), sem mudança de conteúdo
 
-## Context
+## Contexto
 
-muira stores secrets in a local file protected by a single master password.
-We need a design that:
+O muira guarda segredos num arquivo local protegido por uma única senha
+mestra. Precisamos de um design que:
 
-- resists offline brute force of the vault file;
-- allows changing the master password without re-encrypting every record;
-- detects tampering and record swapping;
-- can evolve its on-disk format;
-- is testable against official known-answer vectors, not against itself.
+- resista a força bruta offline contra o arquivo do cofre;
+- permita trocar a senha mestra sem recifrar todos os registros;
+- detecte adulteração e troca de registros;
+- permita evoluir o formato em disco;
+- seja testável contra vetores oficiais de resposta conhecida, não contra si mesmo.
 
-Only primitives from the Go standard library and `golang.org/x/crypto` are
-allowed, and only inside `internal/crypto`.
+Só são permitidas primitivas da biblioteca padrão do Go e de
+`golang.org/x/crypto`, e só dentro de `internal/crypto`.
 
-## Decision
+## Decisão
 
 ### Envelope encryption
 
 ```
-master password ──Argon2id(salt, params)──▶ KEK (32 bytes)
-crypto/rand ──────────────────────────────▶ DEK (32 bytes)
-wrapped DEK  = AES-256-GCM(KEK, nonce, DEK,       AAD = format version ‖ KDF params)
-record blob  = AES-256-GCM(DEK, nonce, plaintext, AAD = record ID)
+senha mestra ──Argon2id(salt, params)──▶ KEK (32 bytes)
+crypto/rand ───────────────────────────▶ DEK (32 bytes)
+DEK embrulhada = AES-256-GCM(KEK, nonce, DEK,       AAD = versão do formato ‖ parâmetros do KDF)
+blob do registro = AES-256-GCM(DEK, nonce, plaintext, AAD = ID do registro)
 ```
 
-- The **KEK** (key-encryption key) is derived from the master password with
-  Argon2id and never stored.
-- The **DEK** (data-encryption key) is 32 random bytes from `crypto/rand`,
-  generated once at `init`, and stored only wrapped by the KEK.
-- Records are encrypted with the DEK.
-- **Password rotation** derives a new KEK (new salt) and re-wraps only the
-  DEK. Records are untouched.
-- **Password verification**: the password is correct if and only if the
-  wrapped DEK decrypts (GCM tag verifies). There is no separate verifier hash,
-  which would be one more offline-attack target and one more thing to keep in
-  sync.
+- A **KEK** (key-encryption key) é derivada da senha mestra com Argon2id e
+  nunca é armazenada.
+- A **DEK** (data-encryption key) são 32 bytes aleatórios de `crypto/rand`,
+  gerados uma vez no `init`, e armazenados apenas embrulhados pela KEK.
+- Os registros são cifrados com a DEK.
+- A **rotação de senha** deriva uma nova KEK (salt novo) e reembrulha apenas a
+  DEK. Os registros não são tocados.
+- **Verificação da senha**: a senha está correta se, e somente se, a DEK
+  embrulhada é decifrada (a tag do GCM confere). Não há um hash verificador
+  separado, que seria mais um alvo de ataque offline e mais uma coisa a
+  manter sincronizada.
 
-### Argon2id parameters
+### Parâmetros do Argon2id
 
-RFC 9106, section 4, second recommended option (for memory-constrained
-environments):
+RFC 9106, seção 4, segunda opção recomendada (para ambientes com memória
+limitada):
 
-| Parameter | Value |
+| Parâmetro | Valor |
 |---|---|
-| Iterations `t` | 3 |
-| Memory `m` | 64 MiB (65536 KiB) |
-| Parallelism `p` | 4 |
-| Salt | 16 random bytes (`crypto/rand`), new on every rotation |
-| Output | 32 bytes |
+| Iterações `t` | 3 |
+| Memória `m` | 64 MiB (65536 KiB) |
+| Paralelismo `p` | 4 |
+| Salt | 16 bytes aleatórios (`crypto/rand`), novo a cada rotação |
+| Saída | 32 bytes |
 
-Implementation: `argon2.IDKey` from `golang.org/x/crypto/argon2` (Argon2
-version 0x13).
+Implementação: `argon2.IDKey` de `golang.org/x/crypto/argon2` (Argon2
+versão 0x13).
 
-The parameters and the salt are **written to the vault metadata** at `init`
-and on every rotation, and are **always read from the metadata** when
-unlocking. Production defaults are used only when creating new key material,
-so the defaults can be raised later without breaking existing vaults.
+Os parâmetros e o salt são **gravados nos metadados do cofre** no `init` e a
+cada rotação, e são **sempre lidos dos metadados** ao desbloquear. Os padrões
+de produção só são usados ao criar material de chave novo, então os padrões
+podem ser elevados no futuro sem quebrar cofres existentes.
 
 ### AES-256-GCM
 
-- `crypto/aes` + `crypto/cipher.NewGCM`, standard 16-byte tag.
-- A fresh **random 12-byte nonce** from `crypto/rand` for every encryption.
-  NIST SP 800-38D limits random-nonce use to 2^32 encryptions per key, far
-  beyond what a personal vault does; rotation of the DEK itself is out of
-  scope for the MVP.
-- **AAD for records**: the record ID, so a ciphertext copied onto another
-  record fails to decrypt.
-- **AAD for the wrapped DEK**: format version and the encoded KDF
-  parameters (including the salt), so tampering with the metadata fails
-  authentication instead of silently weakening the KDF.
+- `crypto/aes` + `crypto/cipher.NewGCM`, tag padrão de 16 bytes.
+- Um **nonce aleatório de 12 bytes** novo de `crypto/rand` para cada
+  cifragem. O NIST SP 800-38D limita o uso de nonces aleatórios a 2^32
+  cifragens por chave, muito além do que um cofre pessoal faz; a rotação da
+  própria DEK está fora do escopo do MVP.
+- **AAD dos registros**: o ID do registro, de modo que um ciphertext copiado
+  para outro registro falha ao decifrar.
+- **AAD da DEK embrulhada**: a versão do formato e os parâmetros do KDF
+  codificados (incluindo o salt), de modo que adulterar os metadados faz a
+  autenticação falhar em vez de enfraquecer o KDF silenciosamente.
 
-### Blob format
+### Formato do blob
 
-Every encrypted blob starts with a format version byte:
+Todo blob cifrado começa com um byte de versão do formato:
 
 ```
-version (1 byte) ‖ nonce (12 bytes) ‖ ciphertext ‖ GCM tag (16 bytes)
+versão (1 byte) ‖ nonce (12 bytes) ‖ ciphertext ‖ tag GCM (16 bytes)
 ```
 
-Version `0x01` is the format described here. Unknown versions are rejected
-with an error that contains no key material. A future format change bumps the
-byte and adds a migration path.
+A versão `0x01` é o formato descrito aqui. Versões desconhecidas são
+rejeitadas com um erro que não contém material de chave. Uma mudança futura
+de formato incrementa o byte e adiciona um caminho de migração.
 
-### Testability
+### Testabilidade
 
-- An unexported function takes the **nonce as an explicit argument**, so
-  known-answer vectors can be checked byte for byte.
-- The exported API **always** generates the nonce itself; callers can never
-  supply one.
-- Argon2 parameters are **injected** (a `Params` value). Under `go test
-  -short`, tests use cheap parameters (e.g. `t=1, m=64 KiB, p=1`). The
-  production default is a separate constant that tests never mutate; one
-  non-short test asserts the default equals the table above.
+- Uma função não exportada recebe o **nonce como argumento explícito**, para
+  que os vetores de resposta conhecida possam ser conferidos byte a byte.
+- A API exportada **sempre** gera o nonce por conta própria; quem chama nunca
+  pode fornecer um.
+- Os parâmetros do Argon2 são **injetados** (um valor `Params`). Com `go test
+  -short`, os testes usam parâmetros baratos (por exemplo, `t=1, m=64 KiB,
+  p=1`). O padrão de produção é uma constante separada que os testes nunca
+  alteram; um teste fora do modo short confere que o padrão é igual à tabela
+  acima.
 
-### Test vectors (expected values never come from our own code)
+### Vetores de teste (os valores esperados nunca vêm do nosso próprio código)
 
-Vectors are committed under `testdata/` with their source recorded next to
-them.
+Os vetores são commitados em `testdata/` com a fonte registrada ao lado.
 
 **AES-256-GCM: NIST CAVP**
-- Archive: <https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/mac/gcmtestvectors.zip>
+- Arquivo: <https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/mac/gcmtestvectors.zip>
   (SHA-256 `f9fc479e134cde2980b3bb7cddbcb567b2cd96fd753835243ed067699f26a023`,
-  downloaded 2026-11-01).
-- Files: `gcmEncryptExtIV256.rsp` and `gcmDecrypt256.rsp`, sections
-  `[Keylen = 256]`, `[IVlen = 96]`, `[Taglen = 128]`. The decrypt file
-  includes `FAIL` cases, which must be rejected.
+  baixado em 2026-11-01).
+- Arquivos: `gcmEncryptExtIV256.rsp` e `gcmDecrypt256.rsp`, seções
+  `[Keylen = 256]`, `[IVlen = 96]`, `[Taglen = 128]`. O arquivo de decrypt
+  inclui casos `FAIL`, que precisam ser rejeitados.
 
-**Argon2id: reference implementation (phc-winner-argon2)**
-- Repository: <https://github.com/P-H-C/phc-winner-argon2>, commit
-  `f57e61e19229e23c4445b85494dbf7c07de721cb`, file `src/test.c`, the
-  `Argon2id` block for version `0x13` (`hashtest(version, t, log2(m KiB), p,
-  pwd, salt, hexref, mcfref, Argon2_id)`, 32-byte output). Note that `m` is
-  given as a base-2 logarithm of KiB (16 → 65536 KiB).
-- **Not usable**: the RFC 9106 section 5.3 vector and the repository's
-  `kats/argon2id` file both set a `secret` (K) and `associated data` (X).
-  `argon2.IDKey` does not expose those inputs, so those vectors cannot be
-  reproduced through the API we use.
+**Argon2id: implementação de referência (phc-winner-argon2)**
+- Repositório: <https://github.com/P-H-C/phc-winner-argon2>, commit
+  `f57e61e19229e23c4445b85494dbf7c07de721cb`, arquivo `src/test.c`, o bloco
+  `Argon2id` da versão `0x13` (`hashtest(version, t, log2(m KiB), p,
+  pwd, salt, hexref, mcfref, Argon2_id)`, saída de 32 bytes). Note que `m` é
+  dado como logaritmo na base 2 de KiB (16 → 65536 KiB).
+- **Não utilizáveis**: o vetor da seção 5.3 da RFC 9106 e o arquivo
+  `kats/argon2id` do repositório definem um `secret` (K) e `associated data`
+  (X). O `argon2.IDKey` não expõe essas entradas, então esses vetores não
+  podem ser reproduzidos pela API que usamos.
 
-## Consequences
+## Consequências
 
-- Unlocking costs ~64 MiB and a noticeable fraction of a second by design;
-  tests must inject cheap parameters to stay fast.
-- Rotation is cheap and atomic (one metadata write).
-- A corrupted or tampered metadata record makes the vault fail to unlock
-  rather than open with weaker parameters.
+- Desbloquear custa ~64 MiB e uma fração perceptível de segundo, por design;
+  os testes precisam injetar parâmetros baratos para continuar rápidos.
+- A rotação é barata e atômica (uma escrita nos metadados).
+- Um registro de metadados corrompido ou adulterado faz o cofre falhar ao
+  desbloquear, em vez de abrir com parâmetros mais fracos.
 
-### Known limits
+### Limites conhecidos
 
-- **Memory hygiene is best effort.** Secrets are `[]byte` and zeroed with
-  `clear()` after use, but the Go runtime may copy memory (GC, stack growth,
-  `string` conversions in third-party code). We do not promise that secrets
-  never linger in memory or swap.
-- **File mode 0600 has no effect on Windows**; access there relies on the
-  user profile ACLs.
-- **No protection against malware running as the same user** (keyloggers,
-  memory readers, a modified binary). The threat model covers a stolen or
-  copied vault file, not a compromised account.
+- **A higiene de memória é de melhor esforço.** Segredos são `[]byte` e são
+  zerados com `clear()` após o uso, mas o runtime do Go pode copiar memória
+  (GC, crescimento de pilha, conversões para `string` em código de
+  terceiros). Não prometemos que segredos nunca permaneçam na memória ou no
+  swap.
+- **O modo de arquivo 0600 não tem efeito no Windows**; lá o acesso depende
+  das ACLs do perfil do usuário.
+- **Sem proteção contra malware rodando como o mesmo usuário** (keyloggers,
+  leitores de memória, um binário modificado). O modelo de ameaças cobre um
+  arquivo de cofre roubado ou copiado, não uma conta comprometida.
 
-## Open questions for review
+## Questões em aberto para revisão
 
-1. Should the record AAD also bind the blob header (version byte), to rule
-   out a future downgrade across format versions? Proposal: AAD =
-   `version ‖ record ID`.
-2. Should the record ID used as AAD be the user-visible name or an internal
-   random ID (renaming a record would then not require re-encryption)?
+1. O AAD dos registros também deveria vincular o cabeçalho do blob (byte de
+   versão), para descartar um downgrade futuro entre versões de formato?
+   Proposta: AAD = `versão ‖ ID do registro`.
+2. O ID do registro usado como AAD deveria ser o nome visível ao usuário ou
+   um ID interno aleatório (renomear um registro então não exigiria
+   recifrar)?
