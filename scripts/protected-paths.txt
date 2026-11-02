@@ -27,6 +27,11 @@ mise/
 .mise/
 .config/mise*
 .tool-versions
+# Lockfiles: mise-action runs `mise install --locked` when one exists.
+mise.lock
+mise.*.lock
+.mise.lock
+.mise.*.lock
 
 # Build, scripts, CI, agent configuration and test vectors
 Makefile

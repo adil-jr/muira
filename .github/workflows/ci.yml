@@ -14,7 +14,7 @@ permissions:
 env:
   # mise CLI version for jdx/mise-action (tool versions live in mise.toml).
   # No MISE_ prefix on purpose: mise reads MISE_* variables as settings.
-  PINNED_MISE_VERSION: 2026.10.11
+  PINNED_MISE_VERSION: 2026.10.25
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

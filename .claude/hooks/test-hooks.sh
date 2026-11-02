@@ -63,6 +63,12 @@ e block Edit "$root/mise.toml"
 e block Write "$root/mise.local.toml"
 e block Write "$root/.config/mise/config.toml"
 e block Write "$root/.tool-versions"
+e block Write "$root/mise.lock"
+e block Edit "$root/mise.lock"
+e block Write "$root/mise.test.lock"
+e block Write "$root/mise.local.lock"
+e block Write "$root/.mise.lock"
+e block Write "$root/.mise.test.lock"
 e block Edit "$root/scripts/commit-msg.sh"
 e block Write "$root/.github/workflows/ci.yml"
 e block Edit "$root/.claude/settings.json"
@@ -158,6 +164,21 @@ b allow 'echo hi >&2'
 b allow 'rm -f internal/vault/zz_violation.go'
 b allow 'sed -n 1,20p Makefile'
 b allow 'go get golang.org/x/crypto@latest'
+
+echo "== guard-bash.sh: mise.lock"
+b block 'echo x > mise.lock'
+b block 'rm mise.lock'
+b block "sed -i 's/1.27.3/1.20/' mise.lock"
+b block 'git checkout -- mise.lock'
+b block 'mise lock'
+b block 'mise lock go@1.20'
+b block 'mise lock --bump'
+b block 'mise upgrade'
+b block 'mise up --bump'
+b block 'mise -C . lock'
+b allow 'mise install --locked'
+b allow 'cat mise.lock'
+b allow 'git diff mise.lock'
 
 echo
 echo "passed: $pass  failed: $fail"

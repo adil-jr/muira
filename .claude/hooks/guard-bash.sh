@@ -9,7 +9,8 @@
 #     core.hooksPath, `git config` touching hooks, `lefthook uninstall`;
 #   - config rewrites without editing files: `mise use|unuse|set|unset`,
 #     `mise settings set|unset|add`, `mise config set`, `mise -E/--env`,
-#     `mise exec tool@version`, and any MISE_* variable assignment;
+#     `mise exec tool@version`, `mise lock`, `mise upgrade`, and any MISE_*
+#     variable assignment;
 #   - `git push` to main (or --all/--mirror);
 #   - writes to protected paths through >, >>, tee, sed -i, perl -i, mv, rm,
 #     cp, install, ln, rsync, dd of=, chmod, chown, truncate, touch, unlink,
@@ -135,6 +136,10 @@ while IFS= read -r seg; do
 				;;
 			"settings set" | "settings unset" | "settings add" | "config set")
 				block "mise $sub $sub2 rewrites mise configuration"
+				;;
+			"lock "* | "upgrade "* | "up "*)
+				# `mise lock tool@version` also rewrites mise.toml.
+				block "mise $sub rewrites mise.lock (and can rewrite mise.toml); the human runs it"
 				;;
 			"exec "* | "x "* | "run "* | "r "*)
 				for ((k = j + 1; k < ${#rest[@]}; k++)); do
