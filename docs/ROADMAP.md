@@ -31,7 +31,7 @@ O guard-bash analisa o texto cru do comando, então gera falsos positivos, por e
 Contorno legítimo, só quando o alvo não é protegido: usar as ferramentas Read/Write em vez do shell, ou caminho absoluto. Mensagens de commit vão sempre por arquivo. A trava real continua sendo o CI (job `guard` + proteção da branch).
 
 ## Fase 1 — crypto (`feat/crypto`)
-- [ ] ADR 0002 revisada e movida para Aceita
+- [x] ADR 0002 revisada e movida para Aceita
 - [ ] KDF Argon2id com parâmetros lidos dos metadados do cofre (nunca fixos no código na leitura)
 - [ ] Seal/open AES-256-GCM com nonce aleatório de 96 bits por operação; variante interna recebe nonce explícito para os testes de resposta conhecida (KAT)
 - [ ] Formato de envelope versionado (byte de versão no início), DEK embrulhada pela KEK, AAD conforme a ADR 0002
@@ -68,3 +68,5 @@ Contorno legítimo, só quando o alvo não é protegido: usar as ferramentas Rea
 - [ ] Telemetria de diagnóstico (local, opt-in)
 - [ ] Cópia para a área de transferência com limpeza automática
 - [ ] TUI
+- [ ] Índice cego com HMAC para buscar registros pelo nome sem decifrar todos (ADR 0002)
+- [ ] Re-key da DEK: gerar uma DEK nova e recifrar todos os registros (ADR 0002)

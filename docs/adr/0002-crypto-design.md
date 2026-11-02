@@ -1,8 +1,10 @@
 # 2. Design criptográfico
 
-- Status: **Proposta** (a ser revisada pelo humano antes da Fase 1)
-- Data: 2026-11-01
-- Idioma: tradução fiel do original em inglês (2026-11-02), sem mudança de conteúdo
+- Status: **Aceita** (2026-11-02, revisada pelo humano no início da Fase 1)
+- Data: 2026-11-01 (proposta) · 2026-11-02 (aceita)
+- Idioma: pt-BR. Traduzida do original em inglês em 2026-11-02; o conteúdo
+  mudou na aceitação (codificação do AAD, ID do registro, limites de
+  parâmetros, erros e questões resolvidas)
 
 ## Contexto
 
@@ -25,9 +27,11 @@ Só são permitidas primitivas da biblioteca padrão do Go e de
 ```
 senha mestra ──Argon2id(salt, params)──▶ KEK (32 bytes)
 crypto/rand ───────────────────────────▶ DEK (32 bytes)
-DEK embrulhada = AES-256-GCM(KEK, nonce, DEK,       AAD = versão do formato ‖ parâmetros do KDF)
-blob do registro = AES-256-GCM(DEK, nonce, plaintext, AAD = ID do registro)
+DEK embrulhada   = AES-256-GCM(KEK, nonce, DEK,       AAD = enc("muira/dek", versão, t, m, p, keyLen, salt))
+blob do registro = AES-256-GCM(DEK, nonce, plaintext, AAD = enc("muira/record", versão, ID do registro))
 ```
+
+`enc(...)` é a codificação length-prefixed descrita em "Codificação do AAD".
 
 - A **KEK** (key-encryption key) é derivada da senha mestra com Argon2id e
   nunca é armazenada.
@@ -62,6 +66,30 @@ cada rotação, e são **sempre lidos dos metadados** ao desbloquear. Os padrõe
 de produção só são usados ao criar material de chave novo, então os padrões
 podem ser elevados no futuro sem quebrar cofres existentes.
 
+#### Validação dos parâmetros
+
+Os parâmetros são lidos dos metadados **antes** de qualquer autenticação,
+então um arquivo adulterado poderia pedir um KDF absurdo (negação de
+serviço) ou fraco. Há duas checagens:
+
+- `Validate`, aplicada em **toda** derivação (estrutural + anti-DoS):
+  - `KeyLen == 32`;
+  - `1 ≤ t ≤ 64`;
+  - `p ≥ 1`;
+  - `8·p ≤ m ≤ 1 GiB (1048576 KiB)`, com `8·p` calculado em 32 bits
+    (`p` é `uint8`, e em 8 bits a multiplicação daria a volta a partir de
+    `p = 32`).
+- `ValidateNew`, aplicada só ao criar material de chave novo (`init` e
+  rotação): `Validate` mais o piso da OWASP para Argon2id, `m ≥ 19456 KiB`
+  e `t ≥ 2`.
+
+Parâmetros que passam em `Validate` mas foram adulterados continuam sendo
+pegos: eles fazem parte do AAD da DEK, então a decifragem falha.
+
+Os padrões ficam numa função, `DefaultParams()`, que devolve uma cópia do
+valor (Go não tem constante de struct); assim nenhum chamador consegue
+alterá-los.
+
 ### AES-256-GCM
 
 - `crypto/aes` + `crypto/cipher.NewGCM`, tag padrão de 16 bytes.
@@ -69,11 +97,51 @@ podem ser elevados no futuro sem quebrar cofres existentes.
   cifragem. O NIST SP 800-38D limita o uso de nonces aleatórios a 2^32
   cifragens por chave, muito além do que um cofre pessoal faz; a rotação da
   própria DEK está fora do escopo do MVP.
-- **AAD dos registros**: o ID do registro, de modo que um ciphertext copiado
-  para outro registro falha ao decifrar.
-- **AAD da DEK embrulhada**: a versão do formato e os parâmetros do KDF
-  codificados (incluindo o salt), de modo que adulterar os metadados faz a
-  autenticação falhar em vez de enfraquecer o KDF silenciosamente.
+- **AAD dos registros**: rótulo de domínio, versão do formato e ID do
+  registro, de modo que um ciphertext copiado para outro registro falha ao
+  decifrar.
+- **AAD da DEK embrulhada**: rótulo de domínio, versão do formato, parâmetros
+  do KDF e salt, de modo que adulterar os metadados faz a autenticação falhar
+  em vez de enfraquecer o KDF silenciosamente.
+- A API exportada só oferece `SealRecord`/`OpenRecord` e
+  `WrapDEK`/`UnwrapDEK`, que montam o AAD internamente; não existe um
+  `Seal(key, pt, aad)` genérico, então o vault não tem como montar um AAD
+  errado.
+
+`NewSalt`, `NewDEK` e `NewRecordID` retornam `[]byte` sem `error`, porque
+desde o Go 1.24 o `crypto/rand.Read` não falha (se a fonte falhar, o programa
+aborta); não há `io.Reader` injetado. O nonce explícito existe só na função
+interna usada pelos KATs.
+
+### Codificação do AAD
+
+Cada campo é codificado como `uint32 big-endian com o tamanho ‖ bytes`, e os
+campos são concatenados. Como o tamanho vem antes dos bytes, o parse é
+determinístico e a codificação é **injetiva**: listas de campos diferentes
+nunca produzem o mesmo AAD (por exemplo, `["ab","c"]` ≠ `["a","bc"]` e
+`[]` ≠ `[""]`). Uma concatenação simples permitiria essas colisões.
+
+O primeiro campo é sempre um **rótulo de domínio** fixo, que separa os dois
+contextos de uso: um blob selado num contexto nunca autentica no outro,
+mesmo que a mesma chave fosse usada nos dois.
+
+| Contexto | Campos, em ordem |
+|---|---|
+| DEK embrulhada | `"muira/dek"`, versão (1 byte), `t` (u32 BE), `m` em KiB (u32 BE), `p` (1 byte), `keyLen` (u32 BE), salt (16 bytes) |
+| Registro | `"muira/record"`, versão (1 byte), ID do registro (16 bytes) |
+
+### ID do registro
+
+O ID do registro são **16 bytes aleatórios de `crypto/rand`**, gerados
+dentro de `internal/crypto` (o depguard confina `crypto/rand` a esse
+pacote). Ele é a chave do registro no bbolt e entra no AAD. O nome e o
+serviço visíveis ao usuário ficam **só dentro do payload cifrado**: o
+arquivo do cofre não revela quais serviços estão guardados, e renomear um
+registro não muda o seu ID.
+
+**Trade-off:** buscar um registro pelo nome exige decifrar todos os
+registros, O(n) com custo de AES-GCM. Para um cofre pessoal (centenas de
+registros) isso é irrelevante; um índice cego fica para a v2.
 
 ### Formato do blob
 
@@ -87,6 +155,31 @@ A versão `0x01` é o formato descrito aqui. Versões desconhecidas são
 rejeitadas com um erro que não contém material de chave. Uma mudança futura
 de formato incrementa o byte e adiciona um caminho de migração.
 
+O byte de versão do cabeçalho **não** é passado como AAD ao GCM, mas o valor
+da versão já está dentro do AAD (segundo campo). Trocar o byte do cabeçalho
+só leva a `ErrUnsupportedVersion`, porque a v1 é a única versão aceita; quando
+existir uma v2, a versão no AAD impede que um blob de uma versão autentique
+como outra.
+
+Ordem das checagens ao abrir um blob:
+
+1. blob vazio → `ErrDecrypt`;
+2. versão ≠ `0x01` → `ErrUnsupportedVersion`;
+3. tamanho < 1 + 12 + 16 bytes → `ErrDecrypt`;
+4. falha do GCM (tag não confere) → `ErrDecrypt`.
+
+### Erros
+
+| Erro | Quando |
+|---|---|
+| `ErrDecrypt` | senha errada, adulteração, blob truncado ou AAD diferente. **Opaco**: os casos são indistinguíveis de propósito |
+| `ErrUnsupportedVersion` | byte de versão desconhecido |
+| `ErrInvalidParams` | parâmetros do KDF fora dos limites; embrulhado com o nome do campo |
+| `ErrInvalidLength` | chave, salt ou ID do registro com tamanho errado |
+
+Todos são comparáveis com `errors.Is`, e nenhuma mensagem de erro carrega
+senha, chave, DEK, salt, nonce ou plaintext.
+
 ### Testabilidade
 
 - Uma função não exportada recebe o **nonce como argumento explícito**, para
@@ -95,9 +188,8 @@ de formato incrementa o byte e adiciona um caminho de migração.
   pode fornecer um.
 - Os parâmetros do Argon2 são **injetados** (um valor `Params`). Com `go test
   -short`, os testes usam parâmetros baratos (por exemplo, `t=1, m=64 KiB,
-  p=1`). O padrão de produção é uma constante separada que os testes nunca
-  alteram; um teste fora do modo short confere que o padrão é igual à tabela
-  acima.
+  p=1`). O padrão de produção vem de `DefaultParams()`, que os testes nunca
+  alteram; um teste confere que o padrão é igual à tabela acima.
 
 ### Vetores de teste (os valores esperados nunca vêm do nosso próprio código)
 
@@ -129,6 +221,8 @@ Os vetores são commitados em `testdata/` com a fonte registrada ao lado.
 - A rotação é barata e atômica (uma escrita nos metadados).
 - Um registro de metadados corrompido ou adulterado faz o cofre falhar ao
   desbloquear, em vez de abrir com parâmetros mais fracos.
+- Buscar um registro pelo nome decifra todos os registros (O(n)); aceitável
+  para o tamanho de um cofre pessoal.
 
 ### Limites conhecidos
 
@@ -143,11 +237,21 @@ Os vetores são commitados em `testdata/` com a fonte registrada ao lado.
   leitores de memória, um binário modificado). O modelo de ameaças cobre um
   arquivo de cofre roubado ou copiado, não uma conta comprometida.
 
-## Questões em aberto para revisão
+## Questões resolvidas
 
-1. O AAD dos registros também deveria vincular o cabeçalho do blob (byte de
-   versão), para descartar um downgrade futuro entre versões de formato?
-   Proposta: AAD = `versão ‖ ID do registro`.
-2. O ID do registro usado como AAD deveria ser o nome visível ao usuário ou
-   um ID interno aleatório (renomear um registro então não exigiria
-   recifrar)?
+1. *O AAD dos registros também deveria vincular a versão do formato, para
+   descartar um downgrade futuro entre versões?* **Sim.** O AAD do registro
+   é `enc("muira/record", versão, ID do registro)`, com a codificação
+   length-prefixed e o rótulo de domínio descritos acima. A mesma codificação
+   vale para o AAD da DEK, que também inclui o salt.
+2. *O ID do registro usado como AAD deveria ser o nome visível ao usuário ou
+   um ID interno aleatório?* **ID interno aleatório** de 16 bytes, usado
+   como chave no bbolt e no AAD. O nome fica só no payload cifrado, e o
+   custo é a busca O(n) descrita em "ID do registro".
+
+## Evolução (v2, fora do escopo do MVP)
+
+- **Índice cego com HMAC** para buscar registros pelo nome sem decifrar
+  todos.
+- **Re-key da DEK**: comando que gera uma DEK nova e recifra todos os
+  registros (a rotação de senha do MVP só reembrulha a DEK).
