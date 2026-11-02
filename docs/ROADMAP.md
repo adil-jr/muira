@@ -32,13 +32,18 @@ Contorno legítimo, só quando o alvo não é protegido: usar as ferramentas Rea
 
 ## Fase 1 — crypto (`feat/crypto`)
 - [x] ADR 0002 revisada e movida para Aceita
-- [ ] KDF Argon2id com parâmetros lidos dos metadados do cofre (nunca fixos no código na leitura)
-- [ ] Seal/open AES-256-GCM com nonce aleatório de 96 bits por operação; variante interna recebe nonce explícito para os testes de resposta conhecida (KAT)
-- [ ] Formato de envelope versionado (byte de versão no início), DEK embrulhada pela KEK, AAD conforme a ADR 0002
-- [ ] Vetores oficiais em `testdata/`: NIST CAVP GCM (chave de 256 bits, IV de 96 bits) e Argon2id do phc-winner-argon2, com a fonte exata citada
-- [ ] Parâmetros baratos de Argon2 injetados em `-short`; padrões de produção intocados
-- [ ] Alvos de fuzz para o parsing do envelope e para o open, ativados no `make fuzz` e no nightly
-- [ ] Cobertura ≥ 85% com `-race`; relatório de mutação revisado
+- [x] KDF Argon2id com parâmetros lidos dos metadados do cofre (nunca fixos no código na leitura). No `internal/crypto`, `DeriveKey`, `WrapDEK` e `UnwrapDEK` recebem `Params` e os validam a cada uso; `DefaultParams()` só serve para material de chave novo. A leitura dos metadados em si é do vault (Fase 3)
+- [x] Seal/open AES-256-GCM com nonce aleatório de 96 bits por operação; variante interna recebe nonce explícito para os testes de resposta conhecida (KAT)
+- [x] Formato de envelope versionado (byte de versão no início), DEK embrulhada pela KEK, AAD conforme a ADR 0002
+- [x] Vetores oficiais em `testdata/`: NIST CAVP GCM (chave de 256 bits, IV de 96 bits) e Argon2id do phc-winner-argon2, com a fonte exata citada
+- [x] Parâmetros baratos de Argon2 injetados em `-short`; padrões de produção intocados
+- [x] Alvos de fuzz para o parsing do envelope e para o open, ativados no `make fuzz` e no nightly: `FuzzOpen` (cobre também o parsing do envelope), `FuzzAAD` e `FuzzRoundTrip`, 60 s por alvo sem falhas
+- [x] Cobertura ≥ 85% com `-race`; relatório de mutação revisado:
+  - cobertura de 98,0%;
+  - mutação somando gremlins e uma passada manual: 47 mortos, 2 vivos justificados e 1 não viável, eficácia de 95,9%;
+  - os 22 mutantes que o gremlins não executa (condições de `case` de `switch` e a soma do `Overhead`) foram aplicados à mão.
+- [x] Restrição do depguard: de `golang.org/x/crypto` passa a valer só `golang.org/x/crypto/argon2`. O módulo também traz o `openpgp`, inseguro e sem manutenção (GO-2026-5932, sem correção). Antes, ele só era barrado pelo staticcheck (SA1019), que um `//nolint` justificado silenciaria (ADR 0003)
+- [x] `testdata/` de pacote protegido em qualquer profundidade abaixo de `internal/` e `cmd/` (`scripts/protected-paths.txt`, com 12 casos novos no `test-hooks.sh`): casos de regressão do fuzzer e arquivos golden também são valores esperados (regra 5). Ignorar no `.gitignore` foi descartado, porque esconderia um caso de falha. Lacuna conhecida: `rm -rf internal/<pacote>` não é bloqueado pelo hook local, só pelo job `guard` do CI (ADR 0003)
 
 ## Fase 2 — storage (`feat/storage`)
 - [ ] Repositório bbolt com os buckets `meta` e `records`
@@ -48,6 +53,7 @@ Contorno legítimo, só quando o alvo não é protegido: usar as ferramentas Rea
 
 ## Fase 3 — vault (`feat/vault`)
 - [ ] `init`, `unlock`, `add`, `get`, `list`, `delete`, `rotate`
+- [ ] Parâmetros do Argon2id e salt lidos dos metadados do cofre a cada desbloqueio (nunca `DefaultParams()` na leitura); `ValidateNew` no `init` e na rotação
 - [ ] Tipo `Secret` que mantém os valores como `[]byte` e os zera (melhor esforço)
 - [ ] Senha errada detectada pela falha ao decifrar a DEK, não por um hash armazenado
 - [ ] A rotação recifra apenas a DEK
