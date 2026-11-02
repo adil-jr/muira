@@ -1,0 +1,170 @@
+# golangci-lint v2 configuration. Protected file: humans edit it.
+# Validate with: mise exec -- golangci-lint config verify
+version: "2"
+
+run:
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - depguard
+    - errcheck
+    - errorlint
+    - forbidigo
+    - gocritic
+    - gosec
+    - govet
+    - nolintlint
+    - revive
+    - staticcheck
+    - unparam
+
+  settings:
+    depguard:
+      rules:
+        # Banned everywhere, production and tests.
+        global:
+          list-mode: lax
+          files:
+            - $all
+          deny:
+            - pkg: math/rand
+              desc: "non-cryptographic randomness is banned; use crypto/rand inside internal/crypto"
+            - pkg: math/rand/v2
+              desc: "non-cryptographic randomness is banned; use crypto/rand inside internal/crypto"
+            - pkg: log$
+              desc: "the log package is banned; use log/slog"
+
+        # Only stdlib, this module and the approved external modules
+        # (see CLAUDE.md). Any new module requires an ADR.
+        allowlist:
+          list-mode: strict
+          files:
+            - $all
+          allow:
+            - $gostd
+            - github.com/adil-jr/muira
+            - golang.org/x/crypto
+            - golang.org/x/term
+            - go.etcd.io/bbolt
+            - github.com/spf13/cobra
+
+        # Cryptographic primitives live only in internal/crypto.
+        crypto-confinement:
+          list-mode: lax
+          files:
+            - $all
+            - "!**/internal/crypto/**"
+          deny:
+            - pkg: crypto/aes
+              desc: "crypto primitives are only allowed in internal/crypto"
+            - pkg: crypto/cipher
+              desc: "crypto primitives are only allowed in internal/crypto"
+            - pkg: crypto/rand
+              desc: "crypto/rand is only allowed in internal/crypto"
+            - pkg: golang.org/x/crypto
+              desc: "golang.org/x/crypto is only allowed in internal/crypto"
+
+        # Layering: cmd -> vault -> (crypto, storage).
+        cmd-layering:
+          list-mode: lax
+          files:
+            - "**/cmd/**"
+          deny:
+            - pkg: github.com/adil-jr/muira/internal/crypto
+              desc: "cmd must go through internal/vault"
+            - pkg: github.com/adil-jr/muira/internal/storage
+              desc: "cmd must go through internal/vault"
+
+        storage-layering:
+          list-mode: lax
+          files:
+            - "**/internal/storage/**"
+          deny:
+            - pkg: github.com/adil-jr/muira/internal/crypto
+              desc: "storage must not know about cryptography"
+
+        crypto-layering:
+          list-mode: lax
+          files:
+            - "**/internal/crypto/**"
+          deny:
+            - pkg: github.com/adil-jr/muira/internal/storage
+              desc: "crypto must not depend on storage"
+
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^fmt\.Print.*$
+          msg: "internal packages must not print; return values/errors to cmd"
+        - pattern: ^os\.(Stdout|Stderr)$
+          msg: "internal packages must not write to the terminal; only cmd does"
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    govet:
+      enable-all: true
+      disable:
+        # Struct field ordering is a micro-optimisation, not a correctness check.
+        - fieldalignment
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: var-naming
+        - name: indent-error-flow
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: errorf
+        - name: context-as-argument
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+
+  exclusions:
+    generated: strict
+    presets: []
+    rules:
+      # forbidigo's terminal-output rules apply only to internal/; cmd is the
+      # single place allowed to print.
+      - path-except: ^internal/
+        linters:
+          - forbidigo
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra:
+        group-params: true
+        clothe-returns: true
+    goimports:
+      local-prefixes:
+        - github.com/adil-jr/muira
+
+issues:
+  # Report every issue, even several on the same line, so no finding hides
+  # behind another one.
+  uniq-by-line: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
