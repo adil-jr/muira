@@ -13,7 +13,10 @@
 #   - `git push` to main (or --all/--mirror);
 #   - writes to protected paths through >, >>, tee, sed -i, perl -i, mv, rm,
 #     cp, install, ln, rsync, dd of=, chmod, chown, truncate, touch, unlink,
-#     shred, find -delete/-exec, git rm|mv|restore|checkout.
+#     shred, find -delete/-exec, git rm|mv|restore|checkout;
+#   - patch application (git apply, git am, patch): a diff can name any path,
+#     so the agent never applies patches; the human does, outside Claude Code;
+#   - nested `claude --settings/--setting-sources` (can drop project hooks).
 HOOK_NAME=guard-bash
 # shellcheck source=.claude/hooks/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh" || exit 2
@@ -31,6 +34,11 @@ has '(^|[^A-Za-z0-9_])LEFTHOOK[A-Za-z0-9_]*=' && block "LEFTHOOK* variables can 
 has '(^|[^A-Za-z0-9_])MISE_[A-Za-z0-9_]*=' && block "MISE_* variables can override pinned tool versions or mise config"
 hasi 'core\.hookspath' && block "core.hooksPath redirects git hooks away from lefthook"
 has 'lefthook([[:space:]]+[^[:space:]]+)*[[:space:]]+uninstall' && block "lefthook uninstall removes the git hooks"
+# A nested Claude Code run can drop these hooks: --settings takes precedence
+# over project and local settings (e.g. {"disableAllHooks": true}), and
+# --setting-sources can leave the project settings out.
+has '(^|[^A-Za-z0-9_./-])claude([[:space:]]+[^[:space:]]+)*[[:space:]]+--(settings|setting-sources)([[:space:]=]|$)' &&
+	block "nested claude with --settings/--setting-sources can disable the project hooks"
 
 # strip_token <word>: remove shell quotes around a word.
 strip_token() {
@@ -181,7 +189,13 @@ while IFS= read -r seg; do
 			rm | mv | restore | checkout)
 				for a in "${args[@]}"; do check_path "$a" "git $sub on protected path:"; done
 				;;
+			apply | am)
+				block "git $sub writes whatever paths the patch names, including protected ones; the human applies patches outside Claude Code"
+				;;
 			esac
+			;;
+		patch)
+			block "patch writes whatever paths the diff names, including protected ones; the human applies patches outside Claude Code"
 			;;
 		esac
 	done
