@@ -63,8 +63,10 @@ The Bash hook is best effort; the real gate is CI (`guard` job + branch
 protection).
 
 ## Language
-Code, comments, commits, ADRs and this file in English. README in Brazilian
-Portuguese. Talk to the human in Brazilian Portuguese.
+- English: code, comments, commit messages and this file.
+- Brazilian Portuguese: README, `docs/ROADMAP.md` and ADRs (`docs/adr/`).
+  Established technical terms stay in English (nonce, AAD, KDF, salt, tag).
+- Talk to the human in Brazilian Portuguese.
 
 ## Closing a phase
 Update `docs/ROADMAP.md` (tick acceptance criteria) and propose an ADR in
