@@ -7,9 +7,9 @@ GO      := $(MISE) go
 BIN_DIR := bin
 PKGS    := ./...
 
-# Fuzz targets as <package>:<FuzzFunc>, one per entry. Enabled in Phase 1.
-FUZZ_TARGETS ?=
-# e.g. FUZZ_TARGETS := ./internal/crypto:FuzzOpen ./internal/crypto:FuzzParseEnvelope
+# Fuzz targets as <package>:<FuzzFunc>, one per entry. FuzzOpen also covers
+# envelope parsing (there is no separate parser to fuzz).
+FUZZ_TARGETS ?= ./internal/crypto:FuzzOpen ./internal/crypto:FuzzAAD ./internal/crypto:FuzzRoundTrip
 FUZZTIME ?= 60s
 
 # Packages under mutation testing.
