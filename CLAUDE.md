@@ -34,6 +34,9 @@ docs/adr/         Architecture decision records.
 - Small commits; each one builds, lints and passes tests.
 - Before every commit show: changed files, diff summary, proposed message.
   Wait for explicit approval.
+- Commit messages: write the message to a file in the session scratchpad
+  with the Write tool and run `git commit -F <file>`. Never `-m`, never a
+  heredoc (the Bash guard parses raw command text).
 
 ## Non-negotiable rules
 1. Never log, print or put in an error: password, key, DEK, salt + password,
