@@ -12,6 +12,19 @@ arquivo e registre as novas decisões como ADRs em `docs/adr/`.
 - [x] CI (lint, testes + piso de cobertura, govulncheck, shellcheck, actionlint, guard), nightly, Dependabot, CODEOWNERS
 - [x] CLAUDE.md, ADR 0001, ADR 0002 (Proposta), esqueleto do README
 
+## Fase 1 — preparação (`chore/phase-1-prep`)
+- [x] ROADMAP, ADR 0001 e ADR 0002 traduzidos para pt-BR, sem mudança de conteúdo; regra de idioma no `CLAUDE.md`
+- [x] Falso positivo do guard-bash com corpo de heredoc e argumento de `-m`/`-F`: **avaliado e rejeitado**. Com a regra de commit via arquivo (`git commit -F <arquivo>`), o falso positivo das mensagens não acontece mais, e a correção acrescentava ~350 linhas de parser em bash a uma trava de segurança: mais superfície de bug e código que o humano não consegue revisar linha a linha, o que quebra a regra de que ele revisa tudo o que entra nos arquivos protegidos. Decisão de custo/benefício.
+- [ ] `mise.lock` commitado e protegido (`scripts/protected-paths.txt`; `mise lock` e `mise upgrade` bloqueados no guard-bash), `PINNED_MISE_VERSION` em 2026.10.25 e CI instalando com `mise install --locked`
+
+### Limitação conhecida: guard-bash de melhor esforço
+O guard-bash analisa o texto cru do comando, então gera falsos positivos, por exemplo:
+- padrões de `grep`/`sed` que contêm um comando bloqueado (`grep 'mise use'`) ou um redirecionamento para caminho protegido (`'> Makefile'`);
+- `mv x .` e outros caminhos relativos: o hook não conhece o diretório atual (cwd) e resolve `.` contra a raiz do projeto;
+- corpo de heredoc e argumento de `-m` que citam comandos bloqueados.
+
+Contorno legítimo, só quando o alvo não é protegido: usar as ferramentas Read/Write em vez do shell, ou caminho absoluto. Mensagens de commit vão sempre por arquivo. A trava real continua sendo o CI (job `guard` + proteção da branch).
+
 ## Fase 1 — crypto (`feat/crypto`)
 - [ ] ADR 0002 revisada e movida para Aceita
 - [ ] KDF Argon2id com parâmetros lidos dos metadados do cofre (nunca fixos no código na leitura)
